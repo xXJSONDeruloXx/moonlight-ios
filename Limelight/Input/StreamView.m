@@ -16,11 +16,17 @@
 #import "KeyboardInputField.h"
 
 static const double X1_MOUSE_SPEED_DIVISOR = 2.5;
+static const NSInteger KEYBOARD_TOOLBAR_PAGE_MAIN = 0;
+static const NSInteger KEYBOARD_TOOLBAR_PAGE_NAV = 1;
+static const NSInteger KEYBOARD_TOOLBAR_PAGE_FN1 = 2;
+static const NSInteger KEYBOARD_TOOLBAR_PAGE_FN2 = 3;
 
 @implementation StreamView {
     OnScreenControls* onScreenControls;
     
     KeyboardInputField* keyInputField;
+    UIToolbar* keyboardToolbar;
+    NSInteger keyboardToolbarPage;
     BOOL isInputingText;
     NSMutableSet* keysDown;
     
@@ -61,6 +67,7 @@ static const double X1_MOUSE_SPEED_DIVISOR = 2.5;
     desktopCursorAnchor = CGPointZero;
     
     keysDown = [[NSMutableSet alloc] init];
+    keyboardToolbarPage = KEYBOARD_TOOLBAR_PAGE_MAIN;
     keyInputField = [[KeyboardInputField alloc] initWithFrame:CGRectZero];
     [keyInputField setKeyboardType:UIKeyboardTypeDefault];
     [keyInputField setAutocorrectionType:UITextAutocorrectionTypeNo];
@@ -415,6 +422,116 @@ static const double X1_MOUSE_SPEED_DIVISOR = 2.5;
 
 #endif
 
+- (void)rebuildKeyboardToolbar {
+#if !TARGET_OS_TV
+    if (keyboardToolbar == nil) {
+        keyboardToolbar = [[UIToolbar alloc] initWithFrame:CGRectMake(0, 0, self.bounds.size.width, 44)];
+    }
+    else {
+        keyboardToolbar.frame = CGRectMake(0, 0, self.bounds.size.width, 44);
+    }
+
+    UIBarButtonItem *doneBarButton = [self createButtonWithImageNamed:@"DoneIcon.png"
+                                                     backgroundColor:[UIColor clearColor]
+                                                              target:self
+                                                              action:@selector(toolbarButtonClicked:)
+                                                             keyCode:0x00
+                                                        isToggleable:NO
+                                                       toolbarAction:@"done"
+                                                               width:32.0f];
+
+    UIBarButtonItem *mainPageButton = [self createButtonWithTitle:@"Main"
+                                                  backgroundColor:[UIColor darkGrayColor]
+                                                           target:self
+                                                           action:@selector(toolbarButtonClicked:)
+                                                          keyCode:0x00
+                                                     isToggleable:NO
+                                                    toolbarAction:@"page-main"
+                                                            width:42.0f];
+
+    UIBarButtonItem *navPageButton = [self createButtonWithTitle:@"Nav"
+                                                 backgroundColor:[UIColor darkGrayColor]
+                                                          target:self
+                                                          action:@selector(toolbarButtonClicked:)
+                                                         keyCode:0x00
+                                                    isToggleable:NO
+                                                   toolbarAction:@"page-nav"
+                                                           width:42.0f];
+
+    UIBarButtonItem *fnPageButton = [self createButtonWithTitle:@"Fn"
+                                                backgroundColor:[UIColor darkGrayColor]
+                                                         target:self
+                                                         action:@selector(toolbarButtonClicked:)
+                                                        keyCode:0x00
+                                                   isToggleable:NO
+                                                  toolbarAction:@"page-fn1"
+                                                          width:42.0f];
+
+    switch (keyboardToolbarPage) {
+        case KEYBOARD_TOOLBAR_PAGE_NAV:
+            [keyboardToolbar setItems:@[
+                doneBarButton,
+                mainPageButton,
+                [self createButtonWithTitle:@"←" backgroundColor:[UIColor blackColor] target:self action:@selector(toolbarButtonClicked:) keyCode:0x25 isToggleable:NO toolbarAction:nil width:36.0f],
+                [self createButtonWithTitle:@"↑" backgroundColor:[UIColor blackColor] target:self action:@selector(toolbarButtonClicked:) keyCode:0x26 isToggleable:NO toolbarAction:nil width:36.0f],
+                [self createButtonWithTitle:@"↓" backgroundColor:[UIColor blackColor] target:self action:@selector(toolbarButtonClicked:) keyCode:0x28 isToggleable:NO toolbarAction:nil width:36.0f],
+                [self createButtonWithTitle:@"→" backgroundColor:[UIColor blackColor] target:self action:@selector(toolbarButtonClicked:) keyCode:0x27 isToggleable:NO toolbarAction:nil width:36.0f],
+                [self createButtonWithTitle:@"Home" backgroundColor:[UIColor blackColor] target:self action:@selector(toolbarButtonClicked:) keyCode:0x24 isToggleable:NO toolbarAction:nil width:44.0f],
+                [self createButtonWithTitle:@"End" backgroundColor:[UIColor blackColor] target:self action:@selector(toolbarButtonClicked:) keyCode:0x23 isToggleable:NO toolbarAction:nil width:40.0f],
+                [self createButtonWithTitle:@"Pg↑" backgroundColor:[UIColor blackColor] target:self action:@selector(toolbarButtonClicked:) keyCode:0x21 isToggleable:NO toolbarAction:nil width:40.0f],
+                [self createButtonWithTitle:@"Pg↓" backgroundColor:[UIColor blackColor] target:self action:@selector(toolbarButtonClicked:) keyCode:0x22 isToggleable:NO toolbarAction:nil width:40.0f],
+            ] animated:NO];
+            break;
+
+        case KEYBOARD_TOOLBAR_PAGE_FN1:
+            [keyboardToolbar setItems:@[
+                doneBarButton,
+                mainPageButton,
+                [self createButtonWithTitle:@"F1" backgroundColor:[UIColor blackColor] target:self action:@selector(toolbarButtonClicked:) keyCode:0x70 isToggleable:NO toolbarAction:nil width:34.0f],
+                [self createButtonWithTitle:@"F2" backgroundColor:[UIColor blackColor] target:self action:@selector(toolbarButtonClicked:) keyCode:0x71 isToggleable:NO toolbarAction:nil width:34.0f],
+                [self createButtonWithTitle:@"F3" backgroundColor:[UIColor blackColor] target:self action:@selector(toolbarButtonClicked:) keyCode:0x72 isToggleable:NO toolbarAction:nil width:34.0f],
+                [self createButtonWithTitle:@"F4" backgroundColor:[UIColor blackColor] target:self action:@selector(toolbarButtonClicked:) keyCode:0x73 isToggleable:NO toolbarAction:nil width:34.0f],
+                [self createButtonWithTitle:@"F5" backgroundColor:[UIColor blackColor] target:self action:@selector(toolbarButtonClicked:) keyCode:0x74 isToggleable:NO toolbarAction:nil width:34.0f],
+                [self createButtonWithTitle:@"F6" backgroundColor:[UIColor blackColor] target:self action:@selector(toolbarButtonClicked:) keyCode:0x75 isToggleable:NO toolbarAction:nil width:34.0f],
+                [self createButtonWithTitle:@"F7→" backgroundColor:[UIColor darkGrayColor] target:self action:@selector(toolbarButtonClicked:) keyCode:0x00 isToggleable:NO toolbarAction:@"page-fn2" width:44.0f],
+            ] animated:NO];
+            break;
+
+        case KEYBOARD_TOOLBAR_PAGE_FN2:
+            [keyboardToolbar setItems:@[
+                doneBarButton,
+                mainPageButton,
+                [self createButtonWithTitle:@"F7" backgroundColor:[UIColor blackColor] target:self action:@selector(toolbarButtonClicked:) keyCode:0x76 isToggleable:NO toolbarAction:nil width:34.0f],
+                [self createButtonWithTitle:@"F8" backgroundColor:[UIColor blackColor] target:self action:@selector(toolbarButtonClicked:) keyCode:0x77 isToggleable:NO toolbarAction:nil width:34.0f],
+                [self createButtonWithTitle:@"F9" backgroundColor:[UIColor blackColor] target:self action:@selector(toolbarButtonClicked:) keyCode:0x78 isToggleable:NO toolbarAction:nil width:34.0f],
+                [self createButtonWithTitle:@"F10" backgroundColor:[UIColor blackColor] target:self action:@selector(toolbarButtonClicked:) keyCode:0x79 isToggleable:NO toolbarAction:nil width:38.0f],
+                [self createButtonWithTitle:@"F11" backgroundColor:[UIColor blackColor] target:self action:@selector(toolbarButtonClicked:) keyCode:0x7A isToggleable:NO toolbarAction:nil width:38.0f],
+                [self createButtonWithTitle:@"F12" backgroundColor:[UIColor blackColor] target:self action:@selector(toolbarButtonClicked:) keyCode:0x7B isToggleable:NO toolbarAction:nil width:38.0f],
+                fnPageButton,
+            ] animated:NO];
+            break;
+
+        case KEYBOARD_TOOLBAR_PAGE_MAIN:
+        default:
+            [keyboardToolbar setItems:@[
+                doneBarButton,
+                [self createButtonWithImageNamed:@"WindowsIcon.png" backgroundColor:[UIColor blackColor] target:self action:@selector(toolbarButtonClicked:) keyCode:0x5B isToggleable:YES toolbarAction:nil width:32.0f],
+                [self createButtonWithImageNamed:@"EscapeIcon.png" backgroundColor:[UIColor blackColor] target:self action:@selector(toolbarButtonClicked:) keyCode:0x1B isToggleable:NO toolbarAction:nil width:32.0f],
+                [self createButtonWithImageNamed:@"TabIcon.png" backgroundColor:[UIColor blackColor] target:self action:@selector(toolbarButtonClicked:) keyCode:0x09 isToggleable:NO toolbarAction:nil width:32.0f],
+                [self createButtonWithImageNamed:@"ShiftIcon.png" backgroundColor:[UIColor blackColor] target:self action:@selector(toolbarButtonClicked:) keyCode:0xA0 isToggleable:YES toolbarAction:nil width:32.0f],
+                [self createButtonWithImageNamed:@"ControlIcon.png" backgroundColor:[UIColor blackColor] target:self action:@selector(toolbarButtonClicked:) keyCode:0xA2 isToggleable:YES toolbarAction:nil width:32.0f],
+                [self createButtonWithImageNamed:@"AltIcon.png" backgroundColor:[UIColor blackColor] target:self action:@selector(toolbarButtonClicked:) keyCode:0xA4 isToggleable:YES toolbarAction:nil width:32.0f],
+                [self createButtonWithImageNamed:@"DeleteIcon.png" backgroundColor:[UIColor blackColor] target:self action:@selector(toolbarButtonClicked:) keyCode:0x2E isToggleable:NO toolbarAction:nil width:32.0f],
+                navPageButton,
+                fnPageButton,
+            ] animated:NO];
+            break;
+    }
+
+    keyInputField.inputAccessoryView = keyboardToolbar;
+#endif
+}
+
 - (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event {
     if ([self handleMouseButtonEvent:BUTTON_ACTION_PRESS
                           forTouches:touches
@@ -460,20 +577,8 @@ static const double X1_MOUSE_SPEED_DIVISOR = 2.5;
                 keyInputField.text = @"0";
 #if !TARGET_OS_TV
                 // Prepare the toolbar above the keyboard for more options
-                UIToolbar *customToolbarView = [[UIToolbar alloc] initWithFrame:CGRectMake(0, 0, self.bounds.size.width, 44)];
-                
-                UIBarButtonItem *doneBarButton = [self createButtonWithImageNamed:@"DoneIcon.png" backgroundColor:[UIColor clearColor] target:self action:@selector(toolbarButtonClicked:) keyCode:0x00 isToggleable:NO];
-                UIBarButtonItem *windowsBarButton = [self createButtonWithImageNamed:@"WindowsIcon.png" backgroundColor:[UIColor blackColor] target:self action:@selector(toolbarButtonClicked:) keyCode:0x5B isToggleable:YES];
-                UIBarButtonItem *tabBarButton = [self createButtonWithImageNamed:@"TabIcon.png" backgroundColor:[UIColor blackColor] target:self action:@selector(toolbarButtonClicked:) keyCode:0x09 isToggleable:NO];
-                UIBarButtonItem *shiftBarButton = [self createButtonWithImageNamed:@"ShiftIcon.png" backgroundColor:[UIColor blackColor] target:self action:@selector(toolbarButtonClicked:) keyCode:0xA0 isToggleable:YES];
-                UIBarButtonItem *escapeBarButton = [self createButtonWithImageNamed:@"EscapeIcon.png" backgroundColor:[UIColor blackColor] target:self action:@selector(toolbarButtonClicked:) keyCode:0x1B isToggleable:NO];
-                UIBarButtonItem *controlBarButton = [self createButtonWithImageNamed:@"ControlIcon.png" backgroundColor:[UIColor blackColor] target:self action:@selector(toolbarButtonClicked:) keyCode:0xA2 isToggleable:YES];
-                UIBarButtonItem *altBarButton = [self createButtonWithImageNamed:@"AltIcon.png" backgroundColor:[UIColor blackColor] target:self action:@selector(toolbarButtonClicked:) keyCode:0xA4 isToggleable:YES];
-                UIBarButtonItem *deleteBarButton = [self createButtonWithImageNamed:@"DeleteIcon.png" backgroundColor:[UIColor blackColor] target:self action:@selector(toolbarButtonClicked:) keyCode:0x2E isToggleable:NO];
-                UIBarButtonItem *flexibleSpace = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemFlexibleSpace target:nil action:nil];
-                
-                [customToolbarView setItems:[NSArray arrayWithObjects:doneBarButton, windowsBarButton, escapeBarButton, tabBarButton, shiftBarButton, controlBarButton, altBarButton, deleteBarButton, flexibleSpace, nil]];
-                keyInputField.inputAccessoryView = customToolbarView;
+                keyboardToolbarPage = KEYBOARD_TOOLBAR_PAGE_MAIN;
+                [self rebuildKeyboardToolbar];
 #endif
                 [keyInputField becomeFirstResponder];
                 [keyInputField addTarget:self action:@selector(onKeyboardPressed:) forControlEvents:UIControlEventEditingChanged];
@@ -487,60 +592,117 @@ static const double X1_MOUSE_SPEED_DIVISOR = 2.5;
     }
 }
 
-- (UIBarButtonItem *)createButtonWithImageNamed:(NSString *)imageName backgroundColor:(UIColor *)backgroundColor target:(id)target action:(SEL)action keyCode:(NSInteger)keyCode isToggleable:(BOOL)isToggleable {
+- (void)applyToolbarButtonStyle:(UIButton *)button backgroundColor:(UIColor *)backgroundColor {
+    button.backgroundColor = backgroundColor;
+    button.layer.cornerRadius = 10.0f;
+    button.layer.masksToBounds = YES;
+    button.titleLabel.font = [UIFont systemFontOfSize:12 weight:UIFontWeightSemibold];
+    [button setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+}
+
+- (UIBarButtonItem *)createButtonWithImageNamed:(NSString *)imageName backgroundColor:(UIColor *)backgroundColor target:(id)target action:(SEL)action keyCode:(NSInteger)keyCode isToggleable:(BOOL)isToggleable toolbarAction:(NSString *)toolbarAction width:(CGFloat)width {
     UIImage *image = [UIImage imageNamed:imageName];
     UIButton *button = [UIButton buttonWithType:UIButtonTypeCustom];
     [button setImage:image forState:UIControlStateNormal];
-    button.frame = CGRectMake(0, 0, 30, 30);
+    button.frame = CGRectMake(0, 0, width, 30);
     button.imageView.contentMode = UIViewContentModeScaleAspectFit;
-    button.imageView.backgroundColor = backgroundColor;
-    button.imageView.layer.cornerRadius = 10.0;
     button.imageEdgeInsets = UIEdgeInsetsMake(6, 6, 6, 6);
+    [self applyToolbarButtonStyle:button backgroundColor:backgroundColor];
     [button addTarget:target action:action forControlEvents:UIControlEventTouchUpInside];
+    BOOL initialIsOn = isToggleable && [keysDown containsObject:@(keyCode)];
+    if (initialIsOn) {
+        [self applyToolbarButtonStyle:button backgroundColor:[UIColor lightGrayColor]];
+    }
     objc_setAssociatedObject(button, "keyCode", @(keyCode), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     objc_setAssociatedObject(button, "isToggleable", @(isToggleable), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    objc_setAssociatedObject(button, "isOn", @(NO), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    objc_setAssociatedObject(button, "isOn", @(initialIsOn), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    objc_setAssociatedObject(button, "toolbarAction", toolbarAction, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    objc_setAssociatedObject(button, "defaultBackgroundColor", backgroundColor, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    UIBarButtonItem *barButton = [[UIBarButtonItem alloc] initWithCustomView:button];
+    return barButton;
+}
+
+- (UIBarButtonItem *)createButtonWithTitle:(NSString *)title backgroundColor:(UIColor *)backgroundColor target:(id)target action:(SEL)action keyCode:(NSInteger)keyCode isToggleable:(BOOL)isToggleable toolbarAction:(NSString *)toolbarAction width:(CGFloat)width {
+    UIButton *button = [UIButton buttonWithType:UIButtonTypeCustom];
+    [button setTitle:title forState:UIControlStateNormal];
+    button.frame = CGRectMake(0, 0, width, 30);
+    button.titleLabel.adjustsFontSizeToFitWidth = YES;
+    button.titleLabel.minimumScaleFactor = 0.6f;
+    [self applyToolbarButtonStyle:button backgroundColor:backgroundColor];
+    [button addTarget:target action:action forControlEvents:UIControlEventTouchUpInside];
+    BOOL initialIsOn = isToggleable && [keysDown containsObject:@(keyCode)];
+    if (initialIsOn) {
+        [self applyToolbarButtonStyle:button backgroundColor:[UIColor lightGrayColor]];
+    }
+    objc_setAssociatedObject(button, "keyCode", @(keyCode), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    objc_setAssociatedObject(button, "isToggleable", @(isToggleable), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    objc_setAssociatedObject(button, "isOn", @(initialIsOn), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    objc_setAssociatedObject(button, "toolbarAction", toolbarAction, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    objc_setAssociatedObject(button, "defaultBackgroundColor", backgroundColor, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     UIBarButtonItem *barButton = [[UIBarButtonItem alloc] initWithCustomView:button];
     return barButton;
 }
 
 - (void)toolbarButtonClicked:(UIButton *)sender {
-    BOOL isToggleable = [objc_getAssociatedObject(sender, "isToggleable") boolValue];
-    BOOL isOn = [objc_getAssociatedObject(sender, "isOn") boolValue];
-    if (isToggleable){
-        isOn = !isOn;
-        // Update the button's appearance based on its new state
-        if (isOn) {
-            sender.imageView.backgroundColor = [UIColor lightGrayColor];
-        } else {
-            sender.imageView.backgroundColor = [UIColor blackColor];
-        }
-    }
-    // Update the new on/off state of the button
-    objc_setAssociatedObject(sender, "isOn", @(isOn), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    // Get the keyCode parameter and convert to short for key press event
-    short keyCode = [objc_getAssociatedObject(sender, "keyCode") shortValue];
-    // Close keyboard if done button clicked
-    if (!keyCode) {
+    NSString *toolbarAction = objc_getAssociatedObject(sender, "toolbarAction");
+    if ([toolbarAction isEqualToString:@"done"]) {
         [keyInputField resignFirstResponder];
         isInputingText = false;
+        return;
     }
-    else {
-        // Send key press event using keyCode parameter, toggle if necessary
-        if (isToggleable){
-            if (isOn){
-                LiSendKeyboardEvent(keyCode, KEY_ACTION_DOWN, 0);
-                [keysDown addObject:@(keyCode)];
-            } else {
-                LiSendKeyboardEvent(keyCode, KEY_ACTION_UP, 0);
-                [keysDown removeObject:@(keyCode)];
-            }
+    else if ([toolbarAction isEqualToString:@"page-main"]) {
+        keyboardToolbarPage = KEYBOARD_TOOLBAR_PAGE_MAIN;
+        [self rebuildKeyboardToolbar];
+        return;
+    }
+    else if ([toolbarAction isEqualToString:@"page-nav"]) {
+        keyboardToolbarPage = KEYBOARD_TOOLBAR_PAGE_NAV;
+        [self rebuildKeyboardToolbar];
+        return;
+    }
+    else if ([toolbarAction isEqualToString:@"page-fn1"]) {
+        keyboardToolbarPage = KEYBOARD_TOOLBAR_PAGE_FN1;
+        [self rebuildKeyboardToolbar];
+        return;
+    }
+    else if ([toolbarAction isEqualToString:@"page-fn2"]) {
+        keyboardToolbarPage = KEYBOARD_TOOLBAR_PAGE_FN2;
+        [self rebuildKeyboardToolbar];
+        return;
+    }
+
+    BOOL isToggleable = [objc_getAssociatedObject(sender, "isToggleable") boolValue];
+    BOOL isOn = [objc_getAssociatedObject(sender, "isOn") boolValue];
+    UIColor *defaultBackgroundColor = objc_getAssociatedObject(sender, "defaultBackgroundColor");
+    if (isToggleable) {
+        isOn = !isOn;
+        [self applyToolbarButtonStyle:sender backgroundColor:(isOn ? [UIColor lightGrayColor] : defaultBackgroundColor ?: [UIColor blackColor])];
+    }
+
+    // Update the new on/off state of the button
+    objc_setAssociatedObject(sender, "isOn", @(isOn), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+
+    // Get the keyCode parameter and convert to short for key press event
+    short keyCode = [objc_getAssociatedObject(sender, "keyCode") shortValue];
+    if (!keyCode) {
+        return;
+    }
+
+    // Send key press event using keyCode parameter, toggle if necessary
+    if (isToggleable) {
+        if (isOn) {
+            LiSendKeyboardEvent(keyCode, KEY_ACTION_DOWN, 0);
+            [keysDown addObject:@(keyCode)];
         }
         else {
-            LiSendKeyboardEvent(keyCode, KEY_ACTION_DOWN, 0);
-            usleep(50 * 1000);
             LiSendKeyboardEvent(keyCode, KEY_ACTION_UP, 0);
+            [keysDown removeObject:@(keyCode)];
         }
+    }
+    else {
+        LiSendKeyboardEvent(keyCode, KEY_ACTION_DOWN, 0);
+        usleep(50 * 1000);
+        LiSendKeyboardEvent(keyCode, KEY_ACTION_UP, 0);
     }
 }
 
