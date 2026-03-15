@@ -222,6 +222,14 @@
     return _streamView;
 }
 
+- (void)scrollViewWillBeginDragging:(UIScrollView *)scrollView {
+#if !TARGET_OS_TV
+    if (_settings.desktopTrackpadMode) {
+        [_streamView resetDesktopCursorAnchor];
+    }
+#endif
+}
+
 - (void)scrollViewDidZoom:(UIScrollView *)scrollView {
     [self updateDesktopTrackpadPanState];
 }

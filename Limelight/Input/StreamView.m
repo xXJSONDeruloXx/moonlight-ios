@@ -43,6 +43,8 @@ static const double X1_MOUSE_SPEED_DIVISOR = 2.5;
     NSTimer* interactionTimer;
     BOOL hasUserInteracted;
     BOOL desktopViewPanningActive;
+    BOOL desktopCursorAnchorInitialized;
+    CGPoint desktopCursorAnchor;
     
     NSDictionary<NSString *, NSNumber *> *dictCodes;
 }
@@ -55,6 +57,8 @@ static const double X1_MOUSE_SPEED_DIVISOR = 2.5;
     
     TemporarySettings* settings = [[[DataManager alloc] init] getSettings];
     desktopViewPanningActive = NO;
+    desktopCursorAnchorInitialized = NO;
+    desktopCursorAnchor = CGPointZero;
     
     keysDown = [[NSMutableSet alloc] init];
     keyInputField = [[KeyboardInputField alloc] initWithFrame:CGRectZero];
@@ -179,11 +183,94 @@ static const double X1_MOUSE_SPEED_DIVISOR = 2.5;
 }
 
 - (void)setDesktopViewPanningActive:(BOOL)active {
+    if (desktopViewPanningActive == active) {
+        return;
+    }
+
     desktopViewPanningActive = active;
+    if (!active) {
+        desktopCursorAnchorInitialized = NO;
+        desktopCursorAnchor = CGPointZero;
+    }
+    else {
+        [self resetDesktopCursorAnchor];
+    }
 }
 
 - (BOOL)isDesktopViewPanningActive {
     return desktopViewPanningActive;
+}
+
+- (void)resetDesktopCursorAnchor {
+    desktopCursorAnchor = CGPointMake(CGRectGetMidX(self.bounds), CGRectGetMidY(self.bounds));
+    desktopCursorAnchorInitialized = YES;
+}
+
+- (void)updateDesktopViewportForRelativeMotion:(CGPoint)viewDelta {
+#if !TARGET_OS_TV
+    if (!desktopViewPanningActive) {
+        return;
+    }
+
+    if (![self.superview isKindOfClass:[UIScrollView class]]) {
+        return;
+    }
+
+    UIScrollView* scrollView = (UIScrollView*)self.superview;
+    if (!desktopCursorAnchorInitialized) {
+        [self resetDesktopCursorAnchor];
+    }
+
+    desktopCursorAnchor.x += viewDelta.x;
+    desktopCursorAnchor.y += viewDelta.y;
+
+    CGFloat followMarginX = self.bounds.size.width * 0.35f;
+    CGFloat followMarginY = self.bounds.size.height * 0.35f;
+    CGFloat minAnchorX = followMarginX;
+    CGFloat maxAnchorX = self.bounds.size.width - followMarginX;
+    CGFloat minAnchorY = followMarginY;
+    CGFloat maxAnchorY = self.bounds.size.height - followMarginY;
+
+    CGFloat offsetDeltaX = 0.0f;
+    CGFloat offsetDeltaY = 0.0f;
+
+    if (desktopCursorAnchor.x < minAnchorX) {
+        offsetDeltaX = desktopCursorAnchor.x - minAnchorX;
+    }
+    else if (desktopCursorAnchor.x > maxAnchorX) {
+        offsetDeltaX = desktopCursorAnchor.x - maxAnchorX;
+    }
+
+    if (desktopCursorAnchor.y < minAnchorY) {
+        offsetDeltaY = desktopCursorAnchor.y - minAnchorY;
+    }
+    else if (desktopCursorAnchor.y > maxAnchorY) {
+        offsetDeltaY = desktopCursorAnchor.y - maxAnchorY;
+    }
+
+    if (offsetDeltaX == 0.0f && offsetDeltaY == 0.0f) {
+        return;
+    }
+
+    CGPoint oldOffset = scrollView.contentOffset;
+    CGPoint newOffset = CGPointMake(oldOffset.x + offsetDeltaX, oldOffset.y + offsetDeltaY);
+    CGFloat maxOffsetX = MAX(scrollView.contentSize.width - scrollView.bounds.size.width, 0.0f);
+    CGFloat maxOffsetY = MAX(scrollView.contentSize.height - scrollView.bounds.size.height, 0.0f);
+
+    newOffset.x = MIN(MAX(newOffset.x, 0.0f), maxOffsetX);
+    newOffset.y = MIN(MAX(newOffset.y, 0.0f), maxOffsetY);
+
+    if (!CGPointEqualToPoint(oldOffset, newOffset)) {
+        scrollView.contentOffset = newOffset;
+
+        // Keep the local desktop cursor anchor in the same visual position after the viewport moves.
+        desktopCursorAnchor.x -= (newOffset.x - oldOffset.x);
+        desktopCursorAnchor.y -= (newOffset.y - oldOffset.y);
+    }
+
+    desktopCursorAnchor.x = MIN(MAX(desktopCursorAnchor.x, 0.0f), self.bounds.size.width);
+    desktopCursorAnchor.y = MIN(MAX(desktopCursorAnchor.y, 0.0f), self.bounds.size.height);
+#endif
 }
 
 - (CGSize) getVideoAreaSize {

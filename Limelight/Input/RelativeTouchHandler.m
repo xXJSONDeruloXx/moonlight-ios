@@ -101,11 +101,18 @@ static const CGFloat PINCH_DETECTION_THRESHOLD = 10.0f;
         if (touchLocation.x != currentLocation.x ||
             touchLocation.y != currentLocation.y)
         {
-            int deltaX = (currentLocation.x - touchLocation.x) * (REFERENCE_WIDTH / view.bounds.size.width);
-            int deltaY = (currentLocation.y - touchLocation.y) * (REFERENCE_HEIGHT / view.bounds.size.height);
+            CGFloat viewDeltaX = currentLocation.x - touchLocation.x;
+            CGFloat viewDeltaY = currentLocation.y - touchLocation.y;
+            int deltaX = viewDeltaX * (REFERENCE_WIDTH / view.bounds.size.width);
+            int deltaY = viewDeltaY * (REFERENCE_HEIGHT / view.bounds.size.height);
             
             if (deltaX != 0 || deltaY != 0) {
                 LiSendMouseMoveEvent(deltaX, deltaY);
+
+                if (desktopTrackpadMode && [(StreamView*)view isDesktopViewPanningActive]) {
+                    [(StreamView*)view updateDesktopViewportForRelativeMotion:CGPointMake(viewDeltaX, viewDeltaY)];
+                }
+
                 touchLocation = currentLocation;
                 
                 // If we've moved far enough to confirm this wasn't just human/machine error,

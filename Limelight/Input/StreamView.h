@@ -31,6 +31,8 @@
 - (OnScreenControlsLevel) getCurrentOscState;
 - (void) setDesktopViewPanningActive:(BOOL)active;
 - (BOOL) isDesktopViewPanningActive;
+- (void) resetDesktopCursorAnchor;
+- (void) updateDesktopViewportForRelativeMotion:(CGPoint)viewDelta;
 
 #if !TARGET_OS_TV
 - (void) updateCursorLocation:(CGPoint)location isMouse:(BOOL)isMouse;
