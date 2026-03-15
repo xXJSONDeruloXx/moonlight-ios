@@ -30,6 +30,8 @@
 - (id)initWithRefreshRate:(float)arg1 videoDynamicRange:(int)arg2;
 @end
 
+static const NSTimeInterval INACTIVITY_TERMINATION_DELAY = 60.0;
+
 @implementation StreamFrameViewController {
     ControllerSupport *_controllerSupport;
     StreamManager *_streamMan;
@@ -414,21 +416,24 @@
     [self.navigationController popToRootViewControllerAnimated:YES];
 }
 
-// This will fire if the user opens control center or gets a low battery message
-- (void)applicationWillResignActive:(NSNotification *)notification {
+- (void)startInactiveTerminationTimer {
+#if !TARGET_OS_TV
     if (_inactivityTimer != nil) {
         [_inactivityTimer invalidate];
     }
-    
-#if !TARGET_OS_TV
-    // Terminate the stream if the app is inactive for 60 seconds
+
     Log(LOG_I, @"Starting inactivity termination timer");
-    _inactivityTimer = [NSTimer scheduledTimerWithTimeInterval:60
+    _inactivityTimer = [NSTimer scheduledTimerWithTimeInterval:INACTIVITY_TERMINATION_DELAY
                                                       target:self
                                                     selector:@selector(inactiveTimerExpired:)
                                                     userInfo:nil
                                                      repeats:NO];
 #endif
+}
+
+// This will fire if the user opens control center or gets a low battery message
+- (void)applicationWillResignActive:(NSNotification *)notification {
+    [self startInactiveTerminationTimer];
 }
 
 - (void)inactiveTimerExpired:(NSTimer*)timer {
@@ -448,16 +453,15 @@
     }
 }
 
-// This fires when the home button is pressed
+// This fires when the app backgrounds or the device is locked.
 - (void)applicationDidEnterBackground:(UIApplication *)application {
-    Log(LOG_I, @"Terminating stream immediately for backgrounding");
+#if !TARGET_OS_TV
+    Log(LOG_I, @"App entered background; keeping stream alive until inactivity timeout expires");
 
-    if (_inactivityTimer != nil) {
-        [_inactivityTimer invalidate];
-        _inactivityTimer = nil;
+    if (_inactivityTimer == nil) {
+        [self startInactiveTerminationTimer];
     }
-    
-    [self returnToMainFrame];
+#endif
 }
 
 - (void)edgeSwiped {
