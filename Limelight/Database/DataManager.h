@@ -28,6 +28,7 @@
                        enableHdr:(BOOL)enableHdr
                   btMouseSupport:(BOOL)btMouseSupport
                absoluteTouchMode:(BOOL)absoluteTouchMode
+            desktopTrackpadMode:(BOOL)desktopTrackpadMode
                     statsOverlay:(BOOL)statsOverlay;
 
 - (NSArray*) getHosts;

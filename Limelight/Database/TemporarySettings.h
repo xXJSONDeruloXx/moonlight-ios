@@ -33,6 +33,7 @@
 @property (nonatomic) BOOL enableHdr;
 @property (nonatomic) BOOL btMouseSupport;
 @property (nonatomic) BOOL absoluteTouchMode;
+@property (nonatomic) BOOL desktopTrackpadMode;
 @property (nonatomic) BOOL statsOverlay;
 
 - (id) initFromSettings:(Settings*)settings;

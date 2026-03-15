@@ -9,6 +9,8 @@
 #import "TemporarySettings.h"
 #import "OnScreenControls.h"
 
+static NSString* const DESKTOP_TRACKPAD_MODE_SETTING_KEY = @"desktopTrackpadMode";
+
 @implementation TemporarySettings
 
 - (id) initFromSettings:(Settings*)settings {
@@ -44,6 +46,7 @@
     self.multiController = [[NSUserDefaults standardUserDefaults] boolForKey:@"multipleControllers"];
     self.swapABXYButtons = [[NSUserDefaults standardUserDefaults] boolForKey:@"swapABXYButtons"];
     self.btMouseSupport = [[NSUserDefaults standardUserDefaults] boolForKey:@"btMouseSupport"];
+    self.desktopTrackpadMode = [[NSUserDefaults standardUserDefaults] boolForKey:DESKTOP_TRACKPAD_MODE_SETTING_KEY];
     self.statsOverlay = [[NSUserDefaults standardUserDefaults] boolForKey:@"statsOverlay"];
     
     NSInteger _screenSize = [[NSUserDefaults standardUserDefaults] integerForKey:@"streamResolution"];
@@ -84,6 +87,7 @@
     self.onscreenControls = settings.onscreenControls;
     self.btMouseSupport = settings.btMouseSupport;
     self.absoluteTouchMode = settings.absoluteTouchMode;
+    self.desktopTrackpadMode = [[NSUserDefaults standardUserDefaults] boolForKey:DESKTOP_TRACKPAD_MODE_SETTING_KEY];
     self.statsOverlay = settings.statsOverlay;
 #endif
     self.uniqueId = settings.uniqueId;

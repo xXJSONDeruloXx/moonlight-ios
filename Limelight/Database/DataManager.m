@@ -10,6 +10,8 @@
 #import "TemporaryApp.h"
 #import "TemporarySettings.h"
 
+static NSString* const DESKTOP_TRACKPAD_MODE_SETTING_KEY = @"desktopTrackpadMode";
+
 @implementation DataManager {
     NSManagedObjectContext *_managedObjectContext;
     AppDelegate *_appDelegate;
@@ -67,6 +69,7 @@
                        enableHdr:(BOOL)enableHdr
                   btMouseSupport:(BOOL)btMouseSupport
                absoluteTouchMode:(BOOL)absoluteTouchMode
+            desktopTrackpadMode:(BOOL)desktopTrackpadMode
                     statsOverlay:(BOOL)statsOverlay {
     
     [_managedObjectContext performBlockAndWait:^{
@@ -87,6 +90,7 @@
         settingsToSave.btMouseSupport = btMouseSupport;
         settingsToSave.absoluteTouchMode = absoluteTouchMode;
         settingsToSave.statsOverlay = statsOverlay;
+        [[NSUserDefaults standardUserDefaults] setBool:desktopTrackpadMode forKey:DESKTOP_TRACKPAD_MODE_SETTING_KEY];
         
         [self saveData];
     }];

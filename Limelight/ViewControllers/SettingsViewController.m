@@ -54,6 +54,10 @@ const int RESOLUTION_TABLE_SIZE = 7;
 const int RESOLUTION_TABLE_CUSTOM_INDEX = RESOLUTION_TABLE_SIZE - 1;
 CGSize resolutionTable[RESOLUTION_TABLE_SIZE];
 
+static const NSInteger TOUCH_MODE_SELECTOR_TRACKPAD = 0;
+static const NSInteger TOUCH_MODE_SELECTOR_DESKTOP = 1;
+static const NSInteger TOUCH_MODE_SELECTOR_TOUCHSCREEN = 2;
+
 -(int)getSliderValueForBitrate:(NSInteger)bitrate {
     int i;
     
@@ -124,6 +128,10 @@ BOOL isCustomResolution(CGSize res) {
     }
     
     return YES;
+}
+
+- (BOOL)isTouchscreenModeSelected {
+    return [self.touchModeSelector selectedSegmentIndex] == TOUCH_MODE_SELECTOR_TOUCHSCREEN;
 }
 
 - (void)viewDidLoad {
@@ -240,7 +248,19 @@ BOOL isCustomResolution(CGSize res) {
         [self.hdrSelector setSelectedSegmentIndex:currentSettings.enableHdr ? 1 : 0];
     }
     
-    [self.touchModeSelector setSelectedSegmentIndex:currentSettings.absoluteTouchMode ? 1 : 0];
+    if ([self.touchModeSelector numberOfSegments] == 2) {
+        [self.touchModeSelector insertSegmentWithTitle:@"Desktop" atIndex:TOUCH_MODE_SELECTOR_DESKTOP animated:NO];
+    }
+    self.touchModeSelector.apportionsSegmentWidthsByContent = YES;
+    if (currentSettings.absoluteTouchMode) {
+        [self.touchModeSelector setSelectedSegmentIndex:TOUCH_MODE_SELECTOR_TOUCHSCREEN];
+    }
+    else if (currentSettings.desktopTrackpadMode) {
+        [self.touchModeSelector setSelectedSegmentIndex:TOUCH_MODE_SELECTOR_DESKTOP];
+    }
+    else {
+        [self.touchModeSelector setSelectedSegmentIndex:TOUCH_MODE_SELECTOR_TRACKPAD];
+    }
     [self.touchModeSelector addTarget:self action:@selector(touchModeChanged) forControlEvents:UIControlEventValueChanged];
     [self.statsOverlaySelector setSelectedSegmentIndex:currentSettings.statsOverlay ? 1 : 0];
     [self.btMouseSelector setSelectedSegmentIndex:currentSettings.btMouseSupport ? 1 : 0];
@@ -266,8 +286,8 @@ BOOL isCustomResolution(CGSize res) {
 }
 
 - (void) touchModeChanged {
-    // Disable on-screen controls in absolute touch mode
-    [self.onscreenControlSelector setEnabled:[self.touchModeSelector selectedSegmentIndex] == 0];
+    // Disable on-screen controls in touchscreen mode
+    [self.onscreenControlSelector setEnabled:![self isTouchscreenModeSelected]];
 }
 
 - (void) updateBitrate {
@@ -535,7 +555,8 @@ BOOL isCustomResolution(CGSize res) {
     uint32_t preferredCodec = [self getChosenCodecPreference];
     BOOL btMouseSupport = [self.btMouseSelector selectedSegmentIndex] == 1;
     BOOL useFramePacing = [self.framePacingSelector selectedSegmentIndex] == 1;
-    BOOL absoluteTouchMode = [self.touchModeSelector selectedSegmentIndex] == 1;
+    BOOL absoluteTouchMode = [self isTouchscreenModeSelected];
+    BOOL desktopTrackpadMode = [self.touchModeSelector selectedSegmentIndex] == TOUCH_MODE_SELECTOR_DESKTOP;
     BOOL statsOverlay = [self.statsOverlaySelector selectedSegmentIndex] == 1;
     BOOL enableHdr = [self.hdrSelector selectedSegmentIndex] == 1;
     [dataMan saveSettingsWithBitrate:_bitrate
@@ -553,6 +574,7 @@ BOOL isCustomResolution(CGSize res) {
                            enableHdr:enableHdr
                       btMouseSupport:btMouseSupport
                    absoluteTouchMode:absoluteTouchMode
+                desktopTrackpadMode:desktopTrackpadMode
                         statsOverlay:statsOverlay];
 }
 
