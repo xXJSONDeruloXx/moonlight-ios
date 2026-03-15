@@ -30,8 +30,6 @@
 - (id)initWithRefreshRate:(float)arg1 videoDynamicRange:(int)arg2;
 @end
 
-static const NSTimeInterval INACTIVITY_TERMINATION_DELAY = 60.0;
-
 @implementation StreamFrameViewController {
     ControllerSupport *_controllerSupport;
     StreamManager *_streamMan;
@@ -416,38 +414,15 @@ static const NSTimeInterval INACTIVITY_TERMINATION_DELAY = 60.0;
     [self.navigationController popToRootViewControllerAnimated:YES];
 }
 
-- (void)startInactiveTerminationTimer {
+// This will fire if the user opens control center or gets a low battery message
+- (void)applicationWillResignActive:(NSNotification *)notification {
 #if !TARGET_OS_TV
-    if (_inactivityTimer != nil) {
-        [_inactivityTimer invalidate];
-    }
-
-    Log(LOG_I, @"Starting inactivity termination timer");
-    _inactivityTimer = [NSTimer scheduledTimerWithTimeInterval:INACTIVITY_TERMINATION_DELAY
-                                                      target:self
-                                                    selector:@selector(inactiveTimerExpired:)
-                                                    userInfo:nil
-                                                     repeats:NO];
+    Log(LOG_I, @"App will resign active; leaving stream running for background persistence");
 #endif
 }
 
-// This will fire if the user opens control center or gets a low battery message
-- (void)applicationWillResignActive:(NSNotification *)notification {
-    [self startInactiveTerminationTimer];
-}
-
-- (void)inactiveTimerExpired:(NSTimer*)timer {
-    Log(LOG_I, @"Terminating stream after inactivity");
-
-    [self returnToMainFrame];
-    
-    _inactivityTimer = nil;
-}
-
 - (void)applicationDidBecomeActive:(NSNotification *)notification {
-    // Stop the background timer, since we're foregrounded again
     if (_inactivityTimer != nil) {
-        Log(LOG_I, @"Stopping inactivity timer after becoming active again");
         [_inactivityTimer invalidate];
         _inactivityTimer = nil;
     }
@@ -456,11 +431,7 @@ static const NSTimeInterval INACTIVITY_TERMINATION_DELAY = 60.0;
 // This fires when the app backgrounds or the device is locked.
 - (void)applicationDidEnterBackground:(UIApplication *)application {
 #if !TARGET_OS_TV
-    Log(LOG_I, @"App entered background; keeping stream alive until inactivity timeout expires");
-
-    if (_inactivityTimer == nil) {
-        [self startInactiveTerminationTimer];
-    }
+    Log(LOG_I, @"App entered background; leaving stream connected while iOS keeps the app alive");
 #endif
 }
 
