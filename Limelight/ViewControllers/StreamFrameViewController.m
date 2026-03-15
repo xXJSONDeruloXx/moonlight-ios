@@ -186,23 +186,30 @@
                                                object: nil];
 #endif
     
-    // Only enable scroll and zoom in absolute touch mode
-    if (_settings.absoluteTouchMode) {
+    BOOL enableClientViewPanZoom = _settings.absoluteTouchMode || _settings.desktopTrackpadMode;
+    if (enableClientViewPanZoom) {
         _scrollView = [[UIScrollView alloc] initWithFrame:self.view.frame];
 #if !TARGET_OS_TV
         [_scrollView.panGestureRecognizer setMinimumNumberOfTouches:2];
+        [_scrollView.panGestureRecognizer setMaximumNumberOfTouches:2];
 #endif
+        _scrollView.delaysContentTouches = NO;
         [_scrollView setShowsHorizontalScrollIndicator:NO];
         [_scrollView setShowsVerticalScrollIndicator:NO];
         [_scrollView setDelegate:self];
+        [_scrollView setMinimumZoomScale:1.0f];
         [_scrollView setMaximumZoomScale:10.0f];
         
-        // Add StreamView inside a UIScrollView for absolute mode
+        // Add StreamView inside a UIScrollView for touchscreen mode and
+        // desktop trackpad mode with client-side pinch/pan.
         [_scrollView addSubview:_streamView];
         [self.view addSubview:_scrollView];
+#if !TARGET_OS_TV
+        [self updateDesktopTrackpadPanState];
+#endif
     }
     else {
-        // Add StreamView directly in relative mode
+        // Add StreamView directly in standard relative mode
         [self.view addSubview:_streamView];
     }
     
@@ -213,6 +220,32 @@
 
 - (UIView *)viewForZoomingInScrollView:(UIScrollView *)scrollView {
     return _streamView;
+}
+
+- (void)scrollViewDidZoom:(UIScrollView *)scrollView {
+    [self updateDesktopTrackpadPanState];
+}
+
+- (void)scrollViewDidEndZooming:(UIScrollView *)scrollView withView:(UIView *)view atScale:(CGFloat)scale {
+    [self updateDesktopTrackpadPanState];
+}
+
+- (void)updateDesktopTrackpadPanState {
+#if !TARGET_OS_TV
+    if (_scrollView == nil) {
+        [_streamView setDesktopViewPanningActive:NO];
+        return;
+    }
+
+    if (!_settings.desktopTrackpadMode) {
+        [_streamView setDesktopViewPanningActive:NO];
+        return;
+    }
+
+    BOOL viewPanningActive = _scrollView.zoomScale > 1.01f;
+    [_streamView setDesktopViewPanningActive:viewPanningActive];
+    _scrollView.panGestureRecognizer.enabled = viewPanningActive;
+#endif
 }
 
 - (void)willMoveToParentViewController:(UIViewController *)parent {

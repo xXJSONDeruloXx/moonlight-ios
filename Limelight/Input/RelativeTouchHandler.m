@@ -12,9 +12,11 @@
 
 static const int REFERENCE_WIDTH = 1280;
 static const int REFERENCE_HEIGHT = 720;
+static const CGFloat PINCH_DETECTION_THRESHOLD = 10.0f;
 
 @implementation RelativeTouchHandler {
     CGPoint touchLocation, originalLocation;
+    CGFloat initialTwoFingerDistance;
     BOOL touchMoved;
     BOOL isDragging;
     NSTimer* dragTimer;
@@ -26,11 +28,17 @@ static const int REFERENCE_HEIGHT = 720;
 #endif
     
     UIView* view;
+    BOOL desktopTrackpadMode;
 }
 
 - (id)initWithView:(StreamView*)view {
+    return [self initWithView:view desktopTrackpadMode:NO];
+}
+
+- (id)initWithView:(StreamView*)view desktopTrackpadMode:(BOOL)desktopTrackpadMode {
     self = [self init];
     self->view = view;
+    self->desktopTrackpadMode = desktopTrackpadMode;
     
 #if TARGET_OS_TV
     remotePressRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(remoteButtonPressed:)];
@@ -61,6 +69,10 @@ static const int REFERENCE_HEIGHT = 720;
 - (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event {
     touchMoved = false;
     peakTouchCount = [[event allTouches] count];
+    if ([[event allTouches] count] > 1) {
+        [dragTimer invalidate];
+        dragTimer = nil;
+    }
     if ([[event allTouches] count] == 1) {
         UITouch *touch = [[event allTouches] anyObject];
         originalLocation = touchLocation = [touch locationInView:view];
@@ -77,6 +89,7 @@ static const int REFERENCE_HEIGHT = 720;
         CGPoint secondLocation = [[[[event allTouches] allObjects] objectAtIndex:1] locationInView:view];
         
         originalLocation = touchLocation = CGPointMake((firstLocation.x + secondLocation.x) / 2, (firstLocation.y + secondLocation.y) / 2);
+        initialTwoFingerDistance = hypotf(firstLocation.x - secondLocation.x, firstLocation.y - secondLocation.y);
     }
 }
 
@@ -105,8 +118,23 @@ static const int REFERENCE_HEIGHT = 720;
     } else if ([[event allTouches] count] == 2) {
         CGPoint firstLocation = [[[[event allTouches] allObjects] objectAtIndex:0] locationInView:view];
         CGPoint secondLocation = [[[[event allTouches] allObjects] objectAtIndex:1] locationInView:view];
-        
         CGPoint avgLocation = CGPointMake((firstLocation.x + secondLocation.x) / 2, (firstLocation.y + secondLocation.y) / 2);
+        BOOL viewPanningActive = desktopTrackpadMode && [(StreamView*)view isDesktopViewPanningActive];
+        CGFloat currentTwoFingerDistance = hypotf(firstLocation.x - secondLocation.x, firstLocation.y - secondLocation.y);
+        BOOL pinchGestureDetected = desktopTrackpadMode && fabs(currentTwoFingerDistance - initialTwoFingerDistance) >= PINCH_DETECTION_THRESHOLD;
+
+        // Suppress host scrolling for desktop-mode viewport gestures.
+        if (viewPanningActive || pinchGestureDetected) {
+            if ([self isConfirmedMove:firstLocation from:originalLocation] ||
+                [self isConfirmedMove:secondLocation from:originalLocation] ||
+                pinchGestureDetected) {
+                touchMoved = true;
+            }
+
+            touchLocation = avgLocation;
+            return;
+        }
+
         if (touchLocation.y != avgLocation.y) {
             LiSendHighResScrollEvent((avgLocation.y - touchLocation.y) * 10);
         }

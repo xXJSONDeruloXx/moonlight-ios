@@ -42,6 +42,7 @@ static const double X1_MOUSE_SPEED_DIVISOR = 2.5;
     id<UserInteractionDelegate> interactionDelegate;
     NSTimer* interactionTimer;
     BOOL hasUserInteracted;
+    BOOL desktopViewPanningActive;
     
     NSDictionary<NSString *, NSNumber *> *dictCodes;
 }
@@ -53,6 +54,7 @@ static const double X1_MOUSE_SPEED_DIVISOR = 2.5;
     self->streamAspectRatio = (float)streamConfig.width / (float)streamConfig.height;
     
     TemporarySettings* settings = [[[DataManager alloc] init] getSettings];
+    desktopViewPanningActive = NO;
     
     keysDown = [[NSMutableSet alloc] init];
     keyInputField = [[KeyboardInputField alloc] initWithFrame:CGRectZero];
@@ -71,7 +73,7 @@ static const double X1_MOUSE_SPEED_DIVISOR = 2.5;
         self->touchHandler = [[AbsoluteTouchHandler alloc] initWithView:self];
     }
     else {
-        self->touchHandler = [[RelativeTouchHandler alloc] initWithView:self];
+        self->touchHandler = [[RelativeTouchHandler alloc] initWithView:self desktopTrackpadMode:settings.desktopTrackpadMode];
     }
     
     onScreenControls = [[OnScreenControls alloc] initWithView:self controllerSup:controllerSupport streamConfig:streamConfig];
@@ -174,6 +176,14 @@ static const double X1_MOUSE_SPEED_DIVISOR = 2.5;
     else {
         return [onScreenControls getLevel];
     }
+}
+
+- (void)setDesktopViewPanningActive:(BOOL)active {
+    desktopViewPanningActive = active;
+}
+
+- (BOOL)isDesktopViewPanningActive {
+    return desktopViewPanningActive;
 }
 
 - (CGSize) getVideoAreaSize {
