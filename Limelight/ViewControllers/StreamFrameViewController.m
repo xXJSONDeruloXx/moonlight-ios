@@ -252,7 +252,10 @@
 
     BOOL viewPanningActive = _scrollView.zoomScale > 1.01f;
     [_streamView setDesktopViewPanningActive:viewPanningActive];
-    _scrollView.panGestureRecognizer.enabled = viewPanningActive;
+
+    // In desktop trackpad mode, keep two-finger translation routed through the
+    // relative touch handler so zoomed interaction matches one-finger cursor movement.
+    _scrollView.panGestureRecognizer.enabled = NO;
 #endif
 }
 

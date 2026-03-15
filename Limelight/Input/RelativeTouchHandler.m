@@ -13,12 +13,15 @@
 static const int REFERENCE_WIDTH = 1280;
 static const int REFERENCE_HEIGHT = 720;
 static const CGFloat PINCH_DETECTION_THRESHOLD = 10.0f;
+static const CGFloat PINCH_CONTINUATION_THRESHOLD = 2.0f;
 
 @implementation RelativeTouchHandler {
     CGPoint touchLocation, originalLocation;
     CGFloat initialTwoFingerDistance;
+    CGFloat lastTwoFingerDistance;
     BOOL touchMoved;
     BOOL isDragging;
+    BOOL pinchGestureActive;
     NSTimer* dragTimer;
     NSUInteger peakTouchCount;
     
@@ -66,6 +69,30 @@ static const CGFloat PINCH_DETECTION_THRESHOLD = 10.0f;
     }
 }
 
+- (BOOL)sendRelativeMouseMoveToLocation:(CGPoint)currentLocation {
+    if (touchLocation.x == currentLocation.x && touchLocation.y == currentLocation.y) {
+        return NO;
+    }
+
+    CGFloat viewDeltaX = currentLocation.x - touchLocation.x;
+    CGFloat viewDeltaY = currentLocation.y - touchLocation.y;
+    int deltaX = viewDeltaX * (REFERENCE_WIDTH / view.bounds.size.width);
+    int deltaY = viewDeltaY * (REFERENCE_HEIGHT / view.bounds.size.height);
+
+    if (deltaX == 0 && deltaY == 0) {
+        return NO;
+    }
+
+    LiSendMouseMoveEvent(deltaX, deltaY);
+
+    if (desktopTrackpadMode && [(StreamView*)view isDesktopViewPanningActive]) {
+        [(StreamView*)view updateDesktopViewportForRelativeMotion:CGPointMake(viewDeltaX, viewDeltaY)];
+    }
+
+    touchLocation = currentLocation;
+    return YES;
+}
+
 - (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event {
     touchMoved = false;
     peakTouchCount = [[event allTouches] count];
@@ -76,6 +103,9 @@ static const CGFloat PINCH_DETECTION_THRESHOLD = 10.0f;
     if ([[event allTouches] count] == 1) {
         UITouch *touch = [[event allTouches] anyObject];
         originalLocation = touchLocation = [touch locationInView:view];
+        initialTwoFingerDistance = 0.0f;
+        lastTwoFingerDistance = 0.0f;
+        pinchGestureActive = NO;
         if (!isDragging) {
             dragTimer = [NSTimer scheduledTimerWithTimeInterval:0.650
                                                      target:self
@@ -90,6 +120,8 @@ static const CGFloat PINCH_DETECTION_THRESHOLD = 10.0f;
         
         originalLocation = touchLocation = CGPointMake((firstLocation.x + secondLocation.x) / 2, (firstLocation.y + secondLocation.y) / 2);
         initialTwoFingerDistance = hypotf(firstLocation.x - secondLocation.x, firstLocation.y - secondLocation.y);
+        lastTwoFingerDistance = initialTwoFingerDistance;
+        pinchGestureActive = NO;
     }
 }
 
@@ -97,29 +129,12 @@ static const CGFloat PINCH_DETECTION_THRESHOLD = 10.0f;
     if ([[event allTouches] count] == 1) {
         UITouch *touch = [[event allTouches] anyObject];
         CGPoint currentLocation = [touch locationInView:view];
-        
-        if (touchLocation.x != currentLocation.x ||
-            touchLocation.y != currentLocation.y)
-        {
-            CGFloat viewDeltaX = currentLocation.x - touchLocation.x;
-            CGFloat viewDeltaY = currentLocation.y - touchLocation.y;
-            int deltaX = viewDeltaX * (REFERENCE_WIDTH / view.bounds.size.width);
-            int deltaY = viewDeltaY * (REFERENCE_HEIGHT / view.bounds.size.height);
-            
-            if (deltaX != 0 || deltaY != 0) {
-                LiSendMouseMoveEvent(deltaX, deltaY);
 
-                if (desktopTrackpadMode && [(StreamView*)view isDesktopViewPanningActive]) {
-                    [(StreamView*)view updateDesktopViewportForRelativeMotion:CGPointMake(viewDeltaX, viewDeltaY)];
-                }
-
-                touchLocation = currentLocation;
-                
-                // If we've moved far enough to confirm this wasn't just human/machine error,
-                // mark it as such.
-                if ([self isConfirmedMove:touchLocation from:originalLocation]) {
-                    touchMoved = true;
-                }
+        if ([self sendRelativeMouseMoveToLocation:currentLocation]) {
+            // If we've moved far enough to confirm this wasn't just human/machine error,
+            // mark it as such.
+            if ([self isConfirmedMove:touchLocation from:originalLocation]) {
+                touchMoved = true;
             }
         }
     } else if ([[event allTouches] count] == 2) {
@@ -128,17 +143,26 @@ static const CGFloat PINCH_DETECTION_THRESHOLD = 10.0f;
         CGPoint avgLocation = CGPointMake((firstLocation.x + secondLocation.x) / 2, (firstLocation.y + secondLocation.y) / 2);
         BOOL viewPanningActive = desktopTrackpadMode && [(StreamView*)view isDesktopViewPanningActive];
         CGFloat currentTwoFingerDistance = hypotf(firstLocation.x - secondLocation.x, firstLocation.y - secondLocation.y);
-        BOOL pinchGestureDetected = desktopTrackpadMode && fabs(currentTwoFingerDistance - initialTwoFingerDistance) >= PINCH_DETECTION_THRESHOLD;
+        BOOL pinchGestureDetected = desktopTrackpadMode &&
+            (fabs(currentTwoFingerDistance - initialTwoFingerDistance) >= PINCH_DETECTION_THRESHOLD ||
+             (pinchGestureActive && fabs(currentTwoFingerDistance - lastTwoFingerDistance) >= PINCH_CONTINUATION_THRESHOLD));
+        lastTwoFingerDistance = currentTwoFingerDistance;
 
-        // Suppress host scrolling for desktop-mode viewport gestures.
-        if (viewPanningActive || pinchGestureDetected) {
-            if ([self isConfirmedMove:firstLocation from:originalLocation] ||
-                [self isConfirmedMove:secondLocation from:originalLocation] ||
-                pinchGestureDetected) {
+        if (pinchGestureDetected) {
+            pinchGestureActive = YES;
+            touchMoved = true;
+            touchLocation = avgLocation;
+            initialTwoFingerDistance = currentTwoFingerDistance;
+            return;
+        }
+
+        pinchGestureActive = NO;
+
+        if (viewPanningActive) {
+            if ([self sendRelativeMouseMoveToLocation:avgLocation] ||
+                [self isConfirmedMove:avgLocation from:originalLocation]) {
                 touchMoved = true;
             }
-
-            touchLocation = avgLocation;
             return;
         }
 
@@ -148,10 +172,10 @@ static const CGFloat PINCH_DETECTION_THRESHOLD = 10.0f;
 
         // If we've moved far enough to confirm this wasn't just human/machine error,
         // mark it as such.
-        if ([self isConfirmedMove:firstLocation from:originalLocation]) {
+        if ([self isConfirmedMove:avgLocation from:originalLocation]) {
             touchMoved = true;
         }
-        
+
         touchLocation = avgLocation;
     }
 }
@@ -159,6 +183,11 @@ static const CGFloat PINCH_DETECTION_THRESHOLD = 10.0f;
 - (void)touchesEnded:(NSSet *)touches withEvent:(UIEvent *)event {
     [dragTimer invalidate];
     dragTimer = nil;
+    pinchGestureActive = NO;
+    if ([[event allTouches] count] - [touches count] < 2) {
+        initialTwoFingerDistance = 0.0f;
+        lastTwoFingerDistance = 0.0f;
+    }
     if (isDragging) {
         isDragging = false;
         LiSendMouseButtonEvent(BUTTON_ACTION_RELEASE, BUTTON_LEFT);
@@ -208,6 +237,9 @@ static const CGFloat PINCH_DETECTION_THRESHOLD = 10.0f;
 - (void)touchesCancelled:(NSSet *)touches withEvent:(UIEvent *)event {
     [dragTimer invalidate];
     dragTimer = nil;
+    pinchGestureActive = NO;
+    initialTwoFingerDistance = 0.0f;
+    lastTwoFingerDistance = 0.0f;
     if (isDragging) {
         isDragging = false;
         LiSendMouseButtonEvent(BUTTON_ACTION_RELEASE, BUTTON_LEFT);
