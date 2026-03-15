@@ -8,6 +8,10 @@
 
 #import "AppDelegate.h"
 
+#if !TARGET_OS_TV
+#import "SWRevealViewController.h"
+#endif
+
 @implementation AppDelegate
 
 @synthesize managedObjectContext = _managedObjectContext;
@@ -33,6 +37,37 @@ static NSString* DB_NAME = @"Limelight_iOS.sqlite";
 }
 
 #if !TARGET_OS_TV
+- (UIViewController*)activeViewControllerFromController:(UIViewController*)controller {
+    while (controller != nil) {
+        if (controller.presentedViewController != nil) {
+            controller = controller.presentedViewController;
+        }
+        else if ([controller isKindOfClass:[UINavigationController class]]) {
+            controller = ((UINavigationController*)controller).visibleViewController;
+        }
+        else if ([controller isKindOfClass:[UITabBarController class]]) {
+            controller = ((UITabBarController*)controller).selectedViewController;
+        }
+        else if ([controller isKindOfClass:[SWRevealViewController class]] && ((SWRevealViewController*)controller).frontViewController != nil) {
+            controller = ((SWRevealViewController*)controller).frontViewController;
+        }
+        else {
+            break;
+        }
+    }
+
+    return controller;
+}
+
+- (UIInterfaceOrientationMask)application:(UIApplication *)application supportedInterfaceOrientationsForWindow:(UIWindow *)window {
+    UIViewController* activeController = [self activeViewControllerFromController:window.rootViewController];
+    if (activeController != nil) {
+        return [activeController supportedInterfaceOrientations];
+    }
+
+    return UIInterfaceOrientationMaskLandscape;
+}
+
 - (void)application:(UIApplication *)application performActionForShortcutItem:(UIApplicationShortcutItem *)shortcutItem completionHandler:(void (^)(BOOL succeeded))completionHandler {
     _pcUuidToLoad = (NSString*)[shortcutItem.userInfo objectForKey:@"UUID"];
     _shortcutCompletionHandler = completionHandler;

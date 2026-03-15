@@ -47,6 +47,7 @@
     UIScrollView *_scrollView;
     BOOL _userIsInteracting;
     CGSize _keyboardSize;
+    CGSize _lastLayoutSize;
     
 #if !TARGET_OS_TV
     UIScreenEdgePanGestureRecognizer *_exitSwipeRecognizer;
@@ -59,8 +60,28 @@
     
 #if !TARGET_OS_TV
     [[self revealViewController] setPrimaryViewController:self];
+    [UIViewController attemptRotationToDeviceOrientation];
 #endif
 }
+
+#if !TARGET_OS_TV
+- (BOOL)allowsPortraitOrientation {
+    TemporarySettings* settings = _settings;
+    if (settings == nil) {
+        settings = [[[DataManager alloc] init] getSettings];
+    }
+
+    return settings.desktopTrackpadMode || settings.absoluteTouchMode;
+}
+
+- (UIInterfaceOrientationMask)supportedInterfaceOrientations {
+    if ([self allowsPortraitOrientation]) {
+        return UIInterfaceOrientationMaskAllButUpsideDown;
+    }
+
+    return UIInterfaceOrientationMaskLandscape;
+}
+#endif
 
 #if TARGET_OS_TV
 - (void)controllerPauseButtonPressed:(id)sender { }
@@ -91,7 +112,9 @@
     [_stageLabel sizeToFit];
     _stageLabel.textAlignment = NSTextAlignmentCenter;
     _stageLabel.textColor = [UIColor whiteColor];
-    _stageLabel.center = CGPointMake(self.view.frame.size.width / 2, self.view.frame.size.height / 2);
+    _stageLabel.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin | UIViewAutoresizingFlexibleRightMargin |
+                                   UIViewAutoresizingFlexibleTopMargin | UIViewAutoresizingFlexibleBottomMargin;
+    _stageLabel.center = CGPointMake(self.view.bounds.size.width / 2, self.view.bounds.size.height / 2);
     
     _spinner = [[UIActivityIndicatorView alloc] init];
     [_spinner setUserInteractionEnabled:NO];
@@ -102,12 +125,15 @@
 #endif
     [_spinner sizeToFit];
     [_spinner startAnimating];
-    _spinner.center = CGPointMake(self.view.frame.size.width / 2, self.view.frame.size.height / 2 - _stageLabel.frame.size.height - _spinner.frame.size.height);
+    _spinner.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin | UIViewAutoresizingFlexibleRightMargin |
+                                UIViewAutoresizingFlexibleTopMargin | UIViewAutoresizingFlexibleBottomMargin;
+    _spinner.center = CGPointMake(self.view.bounds.size.width / 2, self.view.bounds.size.height / 2 - _stageLabel.frame.size.height - _spinner.frame.size.height);
     
     _controllerSupport = [[ControllerSupport alloc] initWithConfig:self.streamConfig delegate:self];
     _inactivityTimer = nil;
     
-    _streamView = [[StreamView alloc] initWithFrame:self.view.frame];
+    _streamView = [[StreamView alloc] initWithFrame:self.view.bounds];
+    _streamView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     [_streamView setupStreamView:_controllerSupport interactionDelegate:self config:self.streamConfig];
     
 #if TARGET_OS_TV
@@ -149,7 +175,9 @@
     [_tipLabel sizeToFit];
     _tipLabel.textColor = [UIColor whiteColor];
     _tipLabel.textAlignment = NSTextAlignmentCenter;
-    _tipLabel.center = CGPointMake(self.view.frame.size.width / 2, self.view.frame.size.height * 0.9);
+    _tipLabel.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin | UIViewAutoresizingFlexibleRightMargin |
+                                 UIViewAutoresizingFlexibleTopMargin;
+    _tipLabel.center = CGPointMake(self.view.bounds.size.width / 2, self.view.bounds.size.height * 0.9);
     
     _streamMan = [[StreamManager alloc] initWithConfig:self.streamConfig
                                             renderView:_streamView
@@ -188,7 +216,8 @@
     
     BOOL enableClientViewPanZoom = _settings.absoluteTouchMode || _settings.desktopTrackpadMode;
     if (enableClientViewPanZoom) {
-        _scrollView = [[UIScrollView alloc] initWithFrame:self.view.frame];
+        _scrollView = [[UIScrollView alloc] initWithFrame:self.view.bounds];
+        _scrollView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
 #if !TARGET_OS_TV
         [_scrollView.panGestureRecognizer setMinimumNumberOfTouches:2];
         [_scrollView.panGestureRecognizer setMaximumNumberOfTouches:2];
@@ -216,6 +245,32 @@
     [self.view addSubview:_stageLabel];
     [self.view addSubview:_spinner];
     [self.view addSubview:_tipLabel];
+}
+
+- (void)viewDidLayoutSubviews {
+    [super viewDidLayoutSubviews];
+
+    CGRect bounds = self.view.bounds;
+    _stageLabel.center = CGPointMake(CGRectGetMidX(bounds), CGRectGetMidY(bounds));
+    _spinner.center = CGPointMake(CGRectGetMidX(bounds), CGRectGetMidY(bounds) - _stageLabel.frame.size.height - _spinner.frame.size.height);
+    _tipLabel.center = CGPointMake(CGRectGetMidX(bounds), bounds.size.height * 0.9f);
+
+    if (_scrollView != nil) {
+        _scrollView.frame = bounds;
+    }
+    else {
+        _streamView.frame = bounds;
+    }
+
+    if (!CGSizeEqualToSize(_lastLayoutSize, bounds.size)) {
+        _lastLayoutSize = bounds.size;
+#if !TARGET_OS_TV
+        if (_settings.desktopTrackpadMode) {
+            [_streamView resetDesktopCursorAnchor];
+            [self updateDesktopTrackpadPanState];
+        }
+#endif
+    }
 }
 
 - (UIView *)viewForZoomingInScrollView:(UIScrollView *)scrollView {

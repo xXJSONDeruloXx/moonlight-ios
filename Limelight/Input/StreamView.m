@@ -8,6 +8,7 @@
 
 #import "StreamView.h"
 #include <Limelight.h>
+#import <AVFoundation/AVFoundation.h>
 #import "DataManager.h"
 #import "ControllerSupport.h"
 #import "KeyboardSupport.h"
@@ -186,6 +187,30 @@ static const NSInteger KEYBOARD_TOOLBAR_PAGE_FN2 = 3;
     }
     else {
         return [onScreenControls getLevel];
+    }
+}
+
+- (void)layoutSubviews {
+    [super layoutSubviews];
+
+#if !TARGET_OS_TV
+    if (keyboardToolbar != nil) {
+        keyboardToolbar.frame = CGRectMake(0, 0, self.bounds.size.width, 44);
+    }
+#endif
+
+    CGSize videoSize = [self getVideoAreaSize];
+    CGPoint videoCenter = CGPointMake(CGRectGetMidX(self.bounds), CGRectGetMidY(self.bounds));
+    for (CALayer *layer in self.layer.sublayers) {
+        if ([layer isKindOfClass:[AVSampleBufferDisplayLayer class]]) {
+            layer.position = videoCenter;
+            layer.bounds = CGRectMake(0, 0, videoSize.width, videoSize.height);
+        }
+    }
+
+    if (desktopCursorAnchorInitialized) {
+        desktopCursorAnchor.x = MIN(MAX(desktopCursorAnchor.x, 0.0f), self.bounds.size.width);
+        desktopCursorAnchor.y = MIN(MAX(desktopCursorAnchor.y, 0.0f), self.bounds.size.height);
     }
 }
 

@@ -1098,6 +1098,7 @@ static NSMutableSet* hostList;
     
 #if !TARGET_OS_TV
     [[self revealViewController] setPrimaryViewController:self];
+    [UIViewController attemptRotationToDeviceOrientation];
 #endif
     
     [self.navigationController setNavigationBarHidden:NO animated:YES];
@@ -1406,6 +1407,10 @@ static NSMutableSet* hostList;
 }
 
 #if !TARGET_OS_TV
+- (UIInterfaceOrientationMask)supportedInterfaceOrientations {
+    return UIInterfaceOrientationMaskLandscape;
+}
+
 - (BOOL)shouldAutorotate {
     return YES;
 }
