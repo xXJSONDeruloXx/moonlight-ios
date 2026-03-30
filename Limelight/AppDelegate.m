@@ -65,7 +65,7 @@ static NSString* DB_NAME = @"Limelight_iOS.sqlite";
         return [activeController supportedInterfaceOrientations];
     }
 
-    return UIInterfaceOrientationMaskLandscape;
+    return UIInterfaceOrientationMaskAllButUpsideDown;
 }
 
 - (void)application:(UIApplication *)application performActionForShortcutItem:(UIApplicationShortcutItem *)shortcutItem completionHandler:(void (^)(BOOL succeeded))completionHandler {

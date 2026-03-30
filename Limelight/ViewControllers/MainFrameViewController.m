@@ -928,6 +928,11 @@ static NSMutableSet* hostList;
     [_settingsButton setTarget:self.revealViewController];
     [_settingsButton setAction:@selector(revealToggle:)];
     
+    // A negative rearViewRevealWidth means (screenWidth + value), so -60 always
+    // leaves 60pt of the front view visible as a tap-to-close strip, regardless of
+    // device or orientation.
+    self.revealViewController.rearViewRevealWidth = -60.0f;
+    
     // Set the host name button action. When it's tapped, it'll show the host selection view.
     [_upButton setTarget:self];
     [_upButton setAction:@selector(showHostSelectionView)];
@@ -1408,7 +1413,7 @@ static NSMutableSet* hostList;
 
 #if !TARGET_OS_TV
 - (UIInterfaceOrientationMask)supportedInterfaceOrientations {
-    return UIInterfaceOrientationMaskLandscape;
+    return UIInterfaceOrientationMaskAllButUpsideDown;
 }
 
 - (BOOL)shouldAutorotate {
